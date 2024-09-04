@@ -23,7 +23,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console.setFormatter(formatter)
 logging.getLogger().addHandler(console)
 
-df = pd.read_csv('state_sn31.csv')
+df = pd.read_csv('state.csv')
     
 uids_and_hf_accounts = df[['uid', 'hf_account']]
 

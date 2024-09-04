@@ -29,23 +29,6 @@ We are currently using a simple file server for our model visualizer. The backen
    ```bash
    pip install -r requirements.txt
    ```
-
-### Running the Server
-
-To run the server, execute:
-
-```bash
-python app/server.py
-```
-
-### Running the Server with PM2
-
-For background process management, use PM2:
-
-```bash
-pm2 start --name="explorer-backend" app/server.py
-```
-
 ### Downloading and Converting the Model
 
 To download and convert the model, execute the following script:
@@ -53,6 +36,25 @@ To download and convert the model, execute the following script:
 ```bash
 python app/download.py
 ```
+
+### Running the Server
+
+To run the server, execute:
+
+```bash
+cd app
+python server.py
+```
+
+### Running the Server with PM2 [Optional]
+
+For background process management, use PM2:
+
+```bash
+cd app
+pm2 start --name="explorer-backend" server.py
+```
+
 
 ### Notes
 
