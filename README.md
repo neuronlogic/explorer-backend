@@ -2,7 +2,7 @@
 
 ### Project Initialization
 
-We are currently using a simple file server for our model visualizer. The backend server is initialized with Flask, and we plan to transition to using Flask for a more robust solution in the future.
+We are currently using FastAPI for our model visualizer, providing a lightweight and efficient backend. This allows for handling asynchronous tasks and better performance for API requests. While FastAPI is serving our needs at the moment, we are planning to transition to Flask in the future to implement a more robust and feature-rich solution as our project scales.
 
 ### Installation and Setup
 
@@ -19,7 +19,7 @@ We are currently using a simple file server for our model visualizer. The backen
    Activate the virtual environment with the following command:
 
    ```bash
-   . .venv/bin/activate
+   source .venv/bin/activate
    ```
 
 3. **Install Dependencies**
@@ -29,21 +29,14 @@ We are currently using a simple file server for our model visualizer. The backen
    ```bash
    pip install -r requirements.txt
    ```
-### Downloading and Converting the Model
 
-To download and convert the model, execute the following script:
-
-```bash
-python app/download.py
-```
-
-### Running the Server
+### Running the development Server
 
 To run the server, execute:
 
 ```bash
 cd app
-python server.py
+uvicorn main:app --host 0.0.0.0 --port 8081
 ```
 
 ### Running the Server with PM2 [Optional]
@@ -52,9 +45,17 @@ For background process management, use PM2:
 
 ```bash
 cd app
-pm2 start --name="explorer-backend" server.py
+pm2 start --name="explorer-backend" start.sh
 ```
 
+### Running the Server with gunicorn for Production
+
+You can start your FastAPI app with gunicorn using the UvicornWorker like this:
+
+```bash
+cd app
+gunicorn -k uvicorn.workers.UvicornWorker main:app --workers 4 --bind 0.0.0.0:8081
+```
 
 ### Notes
 
