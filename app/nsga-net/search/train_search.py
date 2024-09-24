@@ -1,31 +1,29 @@
 import sys
+
 # update your projecty root path before running
-sys.path.insert(0, '/changethis/')
+sys.path.insert(0, "/changethis/")
 
 import os
 import numpy as np
 import torch
 import logging
-import argparse
 import torch.nn as nn
 import torch.utils
+
 # import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
-import torchvision.transforms as transforms
 from models.macro_models import EvoNetwork
 from models.micro_models import NetworkCIFAR as Network
-from torch.utils.data import ConcatDataset
-import search.cifar10_search as my_cifar10
-from safetensors.torch import save_file
 import time
 from misc import utils
 from search import micro_encoding
 from search import macro_encoding
 from misc.flops_counter import add_flops_counting_methods
-import torchvision
 import random
 from vali_trainer import ValiTrainer
-device = 'cuda'
+
+device = "cuda"
+
 
 def worker_init_fn(worker_id):
     # Set the seed for each worker to ensure different seed for each worker
@@ -33,76 +31,94 @@ def worker_init_fn(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
+
 def set_seed(self, seed=0):
-    #random.seed(seed)
+    # random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    #np.random.seed(seed)
+    # np.random.seed(seed)
     cudnn.deterministic = True
     cudnn.benchmark = False
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    os.environ["PYTHONHASHSEED"] = str(seed)
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def main(genome, epochs, search_space='micro',
-         save='Design_1', expr_root='search', seed=0, gpu=0, init_channels=24,
-         layers=11, auxiliary=False, cutout=True, drop_path_prob=0.0):
 
+def main(
+    genome,
+    epochs,
+    search_space="micro",
+    save="Design_1",
+    expr_root="search",
+    seed=0,
+    gpu=0,
+    init_channels=24,
+    layers=11,
+    auxiliary=False,
+    cutout=True,
+    drop_path_prob=0.0,
+):
     # ---- train logger ----------------- #
-    save_pth = os.path.join(expr_root, '{}'.format(save))
+    save_pth = os.path.join(expr_root, "{}".format(save))
     print("save_pth", save_pth)
     utils.create_exp_dir(save_pth)
-    log_format = '%(asctime)s %(message)s'
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-                        format=log_format, datefmt='%m/%d %I:%M:%S %p')
+    log_format = "%(asctime)s %(message)s"
+    logging.basicConfig(
+        stream=sys.stdout,
+        level=logging.INFO,
+        format=log_format,
+        datefmt="%m/%d %I:%M:%S %p",
+    )
     # fh = logging.FileHandler(os.path.join(save_pth, 'log.txt'))
     # fh.setFormatter(logging.Formatter(log_format))
     # logging.getLogger().addHandler(fh)
 
     # ---- parameter values setting ----- #
     CIFAR_CLASSES = 10
-    learning_rate = 0.025
-    momentum = 0.9
-    weight_decay = 3e-4
-    data_root = '../data'
-    batch_size = 128
-    cutout_length = 16
     auxiliary_weight = 0.4
     grad_clip = 5
     report_freq = 50
     train_params = {
-        'auxiliary': auxiliary,
-        'auxiliary_weight': auxiliary_weight,
-        'grad_clip': grad_clip,
-        'report_freq': report_freq,
+        "auxiliary": auxiliary,
+        "auxiliary_weight": auxiliary_weight,
+        "grad_clip": grad_clip,
+        "report_freq": report_freq,
     }
 
-  
     set_seed(0)
-    if search_space == 'micro':
+    if search_space == "micro":
         genotype = micro_encoding.decode(genome)
-        model = Network(init_channels, CIFAR_CLASSES, layers, auxiliary, genotype)
-    elif search_space == 'macro':
+        model = Network(
+            init_channels, CIFAR_CLASSES, layers, auxiliary, genotype
+        )
+    elif search_space == "macro":
         genotype = macro_encoding.decode(genome)
-        channels = [(3, init_channels),
-                    (init_channels, 2*init_channels),
-                    (2*init_channels, 4*init_channels)]
-        model = EvoNetwork(genotype, channels, CIFAR_CLASSES, (32, 32), decoder='residual')
-        
+        channels = [
+            (3, init_channels),
+            (init_channels, 2 * init_channels),
+            (2 * init_channels, 4 * init_channels),
+        ]
+        model = EvoNetwork(
+            genotype, channels, CIFAR_CLASSES, (32, 32), decoder="residual"
+        )
+
     else:
-        raise NameError('Unknown search space type')
+        raise NameError("Unknown search space type")
 
     # logging.info("Genome = %s", genome)
     logging.info("Architecture = %s", genotype)
 
-    
-
-    n_params = (np.sum(np.prod(v.size()) for v in filter(lambda p: p.requires_grad, model.parameters())) / 1e6)
+    n_params = (
+        np.sum(
+            np.prod(v.size())
+            for v in filter(lambda p: p.requires_grad, model.parameters())
+        )
+        / 1e6
+    )
     model = model.to(device)
-
 
     logging.info("param size = %fMB", n_params)
 
@@ -142,7 +158,6 @@ def main(genome, epochs, search_space='micro',
     # train_data = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
 
     # valid_data = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=valid_transform)
-    
 
     # # num_train = len(train_data)
     # # indices = list(range(num_train))
@@ -157,7 +172,6 @@ def main(genome, epochs, search_space='micro',
     #     valid_data, batch_size=batch_size,
     #     # sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
     #     pin_memory=True, num_workers=5)
-
 
     # # Combine train and valid datasets
     # combined_data = ConcatDataset([train_data, valid_data])
@@ -181,9 +195,8 @@ def main(genome, epochs, search_space='micro',
     #     valid_acc, valid_obj = infer(valid_queue, model, criterion)
     #     logging.info('valid_acc %f', valid_acc)
 
-
     # # calculate for flops
-   
+
     # model.eval()
     ###########################333
 
@@ -192,11 +205,9 @@ def main(genome, epochs, search_space='micro',
     trainer.__init__(epochs=50)
     trainer.initialize_weights(model)
     retrained_model = trainer.train(model)
-    valid_acc = round(trainer.test(retrained_model),1)
-
+    valid_acc = round(trainer.test(retrained_model), 1)
 
     #############################
-
 
     # dummy_input = torch.randn(1, 3, 32, 32).to(device)  # Example input: batch_size=1, 3 channels, 32x32
 
@@ -211,7 +222,7 @@ def main(genome, epochs, search_space='micro',
 
     # # Save the traced model
     # traced_model.save("traced_model.pt")
-    #safe tensors
+    # safe tensors
     # state_dict = model.state_dict()
 
     # # Save the state dictionary using SafeTensors
@@ -225,11 +236,11 @@ def main(genome, epochs, search_space='micro',
     random_data = torch.randn(1, 3, 32, 32)
     model(torch.autograd.Variable(random_data).to(device))
     n_flops = np.round(model.compute_average_flops_cost() / 1e6, 4)
-    logging.info('flops = %f', n_flops)
+    logging.info("flops = %f", n_flops)
 
     # save to file
     # os.remove(os.path.join(save_pth, 'log.txt'))
-    with open(os.path.join(save_pth, 'log.txt'), "w") as file:
+    with open(os.path.join(save_pth, "log.txt"), "w") as file:
         file.write("Genome = {}\n".format(genome))
         file.write("Architecture = {}\n".format(genotype))
         file.write("param size = {}MB\n".format(n_params))
@@ -237,11 +248,11 @@ def main(genome, epochs, search_space='micro',
         file.write("valid_acc = {}\n".format(valid_acc))
 
     # logging.info("Architecture = %s", genotype))
-    
+
     return {
-        'valid_acc': valid_acc,
-        'params': n_params,
-        'flops': n_flops,
+        "valid_acc": valid_acc,
+        "params": n_params,
+        "flops": n_flops,
     }
 
 
@@ -280,6 +291,7 @@ def main(genome, epochs, search_space='micro',
 #
 #     return top1.avg, objs.avg
 
+
 # Training
 def train(train_queue, net, criterion, optimizer, params):
     set_seed(0)
@@ -294,12 +306,12 @@ def train(train_queue, net, criterion, optimizer, params):
         outputs, outputs_aux = net(inputs)
         loss = criterion(outputs, targets)
 
-        if params['auxiliary']:
+        if params["auxiliary"]:
             loss_aux = criterion(outputs_aux, targets)
-            loss += params['auxiliary_weight'] * loss_aux
+            loss += params["auxiliary_weight"] * loss_aux
 
         loss.backward()
-        nn.utils.clip_grad_norm_(net.parameters(), params['grad_clip'])
+        nn.utils.clip_grad_norm_(net.parameters(), params["grad_clip"])
         optimizer.step()
 
         train_loss += loss.item()
@@ -312,7 +324,7 @@ def train(train_queue, net, criterion, optimizer, params):
     #
     # logging.info('train acc %f', 100. * correct / total)
 
-    return 100.*correct/total, train_loss/total
+    return 100.0 * correct / total, train_loss / total
 
 
 # def infer(valid_queue, model, criterion):
@@ -361,20 +373,41 @@ def infer(valid_queue, net, criterion):
             # if step % args.report_freq == 0:
             #     logging.info('valid %03d %e %f', step, test_loss/total, 100.*correct/total)
 
-    acc = 100.*correct/total
+    acc = 100.0 * correct / total
     # logging.info('valid acc %f', 100. * correct / total)
 
-    return acc, test_loss/total
+    return acc, test_loss / total
 
 
 if __name__ == "__main__":
-    DARTS_V2 = [[[[3, 0], [3, 1]], [[3, 0], [3, 1]], [[3, 1], [2, 0]], [[2, 0], [5, 2]]],
-               [[[0, 0], [0, 1]], [[2, 2], [0, 1]], [[0, 0], [2, 2]], [[2, 2], [0, 1]]]]
+    DARTS_V2 = [
+        [
+            [[3, 0], [3, 1]],
+            [[3, 0], [3, 1]],
+            [[3, 1], [2, 0]],
+            [[2, 0], [5, 2]],
+        ],
+        [
+            [[0, 0], [0, 1]],
+            [[2, 2], [0, 1]],
+            [[0, 0], [2, 2]],
+            [[2, 2], [0, 1]],
+        ],
+    ]
     start = time.time()
-    print(main(genome=DARTS_V2, epochs=20, save='DARTS_V2_16', seed=1, init_channels=16,
-               auxiliary=False, cutout=False, drop_path_prob=0.0))
-    print('Time elapsed = {} mins'.format((time.time() - start)/60))
+    print(
+        main(
+            genome=DARTS_V2,
+            epochs=20,
+            save="DARTS_V2_16",
+            seed=1,
+            init_channels=16,
+            auxiliary=False,
+            cutout=False,
+            drop_path_prob=0.0,
+        )
+    )
+    print("Time elapsed = {} mins".format((time.time() - start) / 60))
     # start = time.time()
     # print(main(genome=DARTS_V2, epochs=20, save='DARTS_V2_32', seed=1, init_channels=32))
     # print('Time elapsed = {} mins'.format((time.time() - start) / 60))
-

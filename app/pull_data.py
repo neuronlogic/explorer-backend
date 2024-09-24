@@ -8,15 +8,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Retrieve the WANDB API key from environment variable
-wandb_api_key = os.getenv('WANDB_API_KEY')
+wandb_api_key = os.getenv("WANDB_API_KEY")
 
 # Log in to Weights and Biases using the API key
 wandb.login(key=wandb_api_key)
 
 # Define the project and run you want to download files from
-entity = os.getenv('ENTITY')  # Replace with your wandb entity
-project = os.getenv('PROJECT') # Replace with your wandb project
-run_id = os.getenv('RUN_ID')  # Replace with your run ID
+entity = os.getenv("ENTITY")  # Replace with your wandb entity
+project = os.getenv("PROJECT")  # Replace with your wandb project
+run_id = os.getenv("RUN_ID")  # Replace with your run ID
 
 
 def get_runs_dataframe(run_id):
@@ -38,16 +38,16 @@ def get_runs_dataframe(run_id):
 
     custom_filename = "media/table/miners.json"
     file_path = most_recent_file.download(replace=True)
-    
+
     # Rename the downloaded file to the custom filename
     os.rename(file_path.name, custom_filename)
 
     # Load the downloaded file as JSON using the new custom filename
-    with open(custom_filename, 'r') as f:
+    with open(custom_filename, "r") as f:
         table = json.load(f)
-        columns = table['columns']
-        data = table['data']
-        df = pd.DataFrame(data, columns=columns)
+        columns = table["columns"]
+        data = table["data"]
+        pd.DataFrame(data, columns=columns)
 
     # If everything is successful, return True
     return True
@@ -57,11 +57,11 @@ def get_pareto_rows(df, col):
     df_sorted = df.sort_values(by=col)
 
     pareto_frontier = []
-    max_accuracy = -float('inf')
+    max_accuracy = -float("inf")
 
     for index, row in df_sorted.iterrows():
-        if row['accuracy'] > max_accuracy:
+        if row["accuracy"] > max_accuracy:
             pareto_frontier.append(index)
-            max_accuracy = row['accuracy']
+            max_accuracy = row["accuracy"]
 
     return df.loc[pareto_frontier]

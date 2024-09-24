@@ -6,7 +6,7 @@ import numpy as np
 
 
 def phase_dencode(phase_bit_string):
-    n = int(np.sqrt(2 * len(phase_bit_string) - 7/4) - 1/2)
+    n = int(np.sqrt(2 * len(phase_bit_string) - 7 / 4) - 1 / 2)
     genome = []
     for i in range(n):
         operator = []
@@ -23,7 +23,7 @@ def convert(bit_string, n_phases=3):
     phase_length = bit_string.shape[0] // n_phases
     genome = []
     for i in range(0, bit_string.shape[0], phase_length):
-        genome.append((bit_string[i:i+phase_length]).tolist())
+        genome.append((bit_string[i : i + phase_length]).tolist())
 
     return genome
 
