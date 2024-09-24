@@ -29,7 +29,11 @@ We are currently using FastAPI for our model visualizer, providing a lightweight
    ```bash
    pip install -r requirements.txt
    ```
+4. **Setting Env environment**
 
+   ```bash
+   cp .env.sample .env
+   ```
 ### Running the development Server
 
 To run the server, execute:
