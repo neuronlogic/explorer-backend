@@ -1,0 +1,16 @@
+{
+    "entity": "naschain",
+    "project": "naschain-pareto",
+    "run_id": [
+        {
+            "id": 0,
+            "name": "Rizzo",
+            "value": "5F2CsUDVbRbVMXTh9fAzF9GacjVX7UapvRxidrxe7z8BYckQ"
+        },
+        {
+            "id": 1,
+            "name": "TaoStats",
+            "value": "5GKH9FPPnWSUoeeTJp19wVtd84XqFW4pyK2ijV2GsFbhTrP1"
+        }
+    ]
+}
