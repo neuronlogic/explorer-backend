@@ -8,7 +8,7 @@ import torch
 import torch.onnx
 
 
-def convert_models_to_onnx(json_file, nsga_net_path, logs_path, files_path):
+def convert_models_to_onnx(json_files, nsga_net_path, logs_path, files_path):
     """
     Converts models to ONNX format from a list of models specified in a CSV file.
 
@@ -45,11 +45,26 @@ def convert_models_to_onnx(json_file, nsga_net_path, logs_path, files_path):
     console.setFormatter(formatter)
     logging.getLogger().addHandler(console)
 
-    with open(f"{json_file}", "r") as f:
-        json_data = json.load(f)
-    # Read the CSV file
-    df = pd.DataFrame(json_data["data"], columns=json_data["columns"])
-    uids_and_hf_accounts = df[["uid", "hf_account"]]
+    all_uids_and_hf_accounts = []
+
+    for json_file in json_files:
+        with open(json_file, "r") as f:
+            json_data = json.load(f)
+
+        # Read the JSON data into a DataFrame
+        df = pd.DataFrame(json_data["data"], columns=json_data["columns"])
+
+        # Extract the relevant columns
+        uids_and_hf_accounts = df[["uid", "hf_account"]]
+
+        # Append to the list of DataFrames
+        all_uids_and_hf_accounts.append(uids_and_hf_accounts)
+
+    # Concatenate all DataFrames into a single DataFrame
+    combined_df = pd.concat(all_uids_and_hf_accounts, ignore_index=True)
+
+    # Drop duplicates based on 'uid' to keep only unique accounts by uid
+    unique_accounts = combined_df.drop_duplicates(subset="uid")
 
     def load_model(model_dir):
         try:
@@ -67,7 +82,7 @@ def convert_models_to_onnx(json_file, nsga_net_path, logs_path, files_path):
                 raise
 
     # Iterate over each model to download and convert
-    for row in uids_and_hf_accounts.itertuples(index=False):
+    for row in unique_accounts.itertuples(index=False):
         try:
             url = f"https://huggingface.co/{row.hf_account}/resolve/main/model.pt"
             logging.info(f"Attempting to download model from {url}")

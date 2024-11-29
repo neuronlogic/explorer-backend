@@ -1,7 +1,7 @@
 {
     "entity": "naschain",
     "project": "naschain-pareto",
-    "run_id": [
+    "run_ids": [
         {
             "id": 0,
             "name": "Rizzo",
@@ -11,6 +11,21 @@
             "id": 1,
             "name": "TaoStats",
             "value": "5GKH9FPPnWSUoeeTJp19wVtd84XqFW4pyK2ijV2GsFbhTrP1"
+        },
+        {
+            "id": 2,
+            "name": "OTF",
+            "value": "5F4tQyWrhfGVcNhoqeiNsR6KjD4wMZ2kfhLj4oHYuyHbZAc3"
+        },
+        {
+            "id": 3,
+            "name": "RoundTable21",
+            "value": "5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v"
+        },
+        {
+            "id": 4,
+            "name": "Guru",
+            "value": "5HK5tp6t2S59DywmHRWPBVJeJ86T61KjurYqeooqj8sREpeN"
         }
     ]
 }
