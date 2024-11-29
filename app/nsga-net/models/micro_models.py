@@ -1,24 +1,40 @@
-from models.micro_operations import *
+from models.micro_operations import (
+    FactorizedReduce,
+    Identity,
+    OPS,
+    ReLUConvBN,
+    SELayer,
+    nn,
+    torch,
+)
 from misc.utils import drop_path
 
 
 DEFAULT_PADDINGS = {
-    'none': 1,
-    'skip_connect': 1,
-    'avg_pool_3x3': 1,
-    'max_pool_3x3': 1,
-    'sep_conv_3x3': 1,
-    'sep_conv_5x5': 2,
-    'sep_conv_7x7': 3,
-    'dil_conv_3x3': 2,
-    'dil_conv_5x5': 4,
-    'conv_7x1_1x7': 3,
+    "none": 1,
+    "skip_connect": 1,
+    "avg_pool_3x3": 1,
+    "max_pool_3x3": 1,
+    "sep_conv_3x3": 1,
+    "sep_conv_5x5": 2,
+    "sep_conv_7x7": 3,
+    "dil_conv_3x3": 2,
+    "dil_conv_5x5": 4,
+    "conv_7x1_1x7": 3,
 }
 
 
 class Cell(nn.Module):
-
-    def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, SE=False):
+    def __init__(
+        self,
+        genotype,
+        C_prev_prev,
+        C_prev,
+        C,
+        reduction,
+        reduction_prev,
+        SE=False,
+    ):
         super(Cell, self).__init__()
         print(C_prev_prev, C_prev, C)
 
@@ -66,7 +82,7 @@ class Cell(nn.Module):
             op2 = self._ops[2 * i + 1]
             h1 = op1(h1)
             h2 = op2(h2)
-            if self.training and drop_prob > 0.:
+            if self.training and drop_prob > 0.0:
                 if not isinstance(op1, Identity):
                     h1 = drop_path(h1, drop_prob)
                 if not isinstance(op2, Identity):
@@ -77,23 +93,26 @@ class Cell(nn.Module):
         if self.se_layer is None:
             return torch.cat([states[i] for i in self._concat], dim=1)
         else:
-            return self.se_layer(torch.cat([states[i] for i in self._concat], dim=1))
+            return self.se_layer(
+                torch.cat([states[i] for i in self._concat], dim=1)
+            )
 
 
 class AuxiliaryHeadCIFAR(nn.Module):
-
     def __init__(self, C, num_classes):
         """assuming input size 8x8"""
         super(AuxiliaryHeadCIFAR, self).__init__()
         self.features = nn.Sequential(
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(5, stride=3, padding=0, count_include_pad=False),  # image size = 2 x 2
+            nn.AvgPool2d(
+                5, stride=3, padding=0, count_include_pad=False
+            ),  # image size = 2 x 2
             nn.Conv2d(C, 128, 1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Conv2d(128, 768, 2, bias=False),
             nn.BatchNorm2d(768),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
         self.classifier = nn.Linear(768, num_classes)
 
@@ -104,7 +123,6 @@ class AuxiliaryHeadCIFAR(nn.Module):
 
 
 class AuxiliaryHeadImageNet(nn.Module):
-
     def __init__(self, C, num_classes):
         """assuming input size 14x14"""
         super(AuxiliaryHeadImageNet, self).__init__()
@@ -118,7 +136,7 @@ class AuxiliaryHeadImageNet(nn.Module):
             # NOTE: This batchnorm was omitted in my earlier implementation due to a typo.
             # Commenting it out for consistency with the experiments in the paper.
             # nn.BatchNorm2d(768),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
         self.classifier = nn.Linear(768, num_classes)
 
@@ -129,7 +147,6 @@ class AuxiliaryHeadImageNet(nn.Module):
 
 
 class NetworkCIFAR(nn.Module):
-
     def __init__(self, C, num_classes, layers, auxiliary, genotype, SE=False):
         super(NetworkCIFAR, self).__init__()
         self._layers = layers
@@ -139,7 +156,7 @@ class NetworkCIFAR(nn.Module):
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
-            nn.BatchNorm2d(C_curr)
+            nn.BatchNorm2d(C_curr),
         )
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
@@ -152,7 +169,15 @@ class NetworkCIFAR(nn.Module):
             else:
                 reduction = False
 
-            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, SE=SE)
+            cell = Cell(
+                genotype,
+                C_prev_prev,
+                C_prev,
+                C_curr,
+                reduction,
+                reduction_prev,
+                SE=SE,
+            )
 
             reduction_prev = reduction
             self.cells += [cell]
@@ -161,7 +186,9 @@ class NetworkCIFAR(nn.Module):
                 C_to_auxiliary = C_prev
 
         if auxiliary:
-            self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
+            self.auxiliary_head = AuxiliaryHeadCIFAR(
+                C_to_auxiliary, num_classes
+            )
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(C_prev, num_classes)
 
@@ -179,11 +206,23 @@ class NetworkCIFAR(nn.Module):
         if torch.jit.is_tracing():
             return logits  # Return only the main output for tracing
         else:
-            return logits, logits_aux  # Return both outputs for normal execution
+            return (
+                logits,
+                logits_aux,
+            )  # Return both outputs for normal execution
 
 
 class PyramidNetworkCIFAR(nn.Module):
-    def __init__(self, C, num_classes, layers, auxiliary, genotype, increment=4, SE=False):
+    def __init__(
+        self,
+        C,
+        num_classes,
+        layers,
+        auxiliary,
+        genotype,
+        increment=4,
+        SE=False,
+    ):
         super(PyramidNetworkCIFAR, self).__init__()
         self._layers = layers
         self._auxiliary = auxiliary
@@ -192,7 +231,7 @@ class PyramidNetworkCIFAR(nn.Module):
         C_curr = stem_multiplier * C
         self.stem = nn.Sequential(
             nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
-            nn.BatchNorm2d(C_curr)
+            nn.BatchNorm2d(C_curr),
         )
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
@@ -204,7 +243,15 @@ class PyramidNetworkCIFAR(nn.Module):
             else:
                 reduction = False
 
-            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, SE=SE)
+            cell = Cell(
+                genotype,
+                C_prev_prev,
+                C_prev,
+                C_curr,
+                reduction,
+                reduction_prev,
+                SE=SE,
+            )
 
             reduction_prev = reduction
             self.cells += [cell]
@@ -215,7 +262,9 @@ class PyramidNetworkCIFAR(nn.Module):
             C_curr += increment
 
         if auxiliary:
-            self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
+            self.auxiliary_head = AuxiliaryHeadCIFAR(
+                C_to_auxiliary, num_classes
+            )
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(C_prev, num_classes)
 
@@ -233,14 +282,15 @@ class PyramidNetworkCIFAR(nn.Module):
 
 
 class NetworkImageNet(nn.Module):
-
     def __init__(self, C, num_classes, layers, auxiliary, genotype):
         super(NetworkImageNet, self).__init__()
         self._layers = layers
         self._auxiliary = auxiliary
 
         self.stem0 = nn.Sequential(
-            nn.Conv2d(3, C // 2, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.Conv2d(
+                3, C // 2, kernel_size=3, stride=2, padding=1, bias=False
+            ),
             nn.BatchNorm2d(C // 2),
             nn.ReLU(inplace=True),
             nn.Conv2d(C // 2, C, 3, stride=2, padding=1, bias=False),
@@ -263,7 +313,14 @@ class NetworkImageNet(nn.Module):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+            cell = Cell(
+                genotype,
+                C_prev_prev,
+                C_prev,
+                C_curr,
+                reduction,
+                reduction_prev,
+            )
             reduction_prev = reduction
             self.cells += [cell]
             C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
@@ -271,7 +328,9 @@ class NetworkImageNet(nn.Module):
                 C_to_auxiliary = C_prev
 
         if auxiliary:
-            self.auxiliary_head = AuxiliaryHeadImageNet(C_to_auxiliary, num_classes)
+            self.auxiliary_head = AuxiliaryHeadImageNet(
+                C_to_auxiliary, num_classes
+            )
         self.global_pooling = nn.AvgPool2d(7)
         self.classifier = nn.Linear(C_prev, num_classes)
 
@@ -289,7 +348,7 @@ class NetworkImageNet(nn.Module):
         return logits, logits_aux
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import validation.utils as utils
     import models.micro_genotypes as genotypes
 

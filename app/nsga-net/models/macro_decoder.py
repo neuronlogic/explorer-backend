@@ -42,7 +42,7 @@ class ChannelBasedDecoder(Decoder):
 
         # First, we remove all inactive phases.
         self._genome = self.get_effective_genome(list_genome)
-        self._channels = channels[:len(self._genome)]
+        self._channels = channels[: len(self._genome)]
 
         # Use the provided repeats list, or a list of all ones (only repeat each phase once).
         if repeats is not None:
@@ -77,10 +77,14 @@ class ChannelBasedDecoder(Decoder):
             for j in range(repeat):
                 if j == 0:
                     # This is the first instance of this repeat, we need to use the (in, out) channel convention.
-                    repeated_channels.append((self._channels[i][0], self._channels[i][1]))
+                    repeated_channels.append(
+                        (self._channels[i][0], self._channels[i][1])
+                    )
                 else:
                     # This is not the first instance, use the (out, out) convention.
-                    repeated_channels.append((self._channels[i][1], self._channels[i][1]))
+                    repeated_channels.append(
+                        (self._channels[i][1], self._channels[i][1])
+                    )
 
                 repeated_genome.append(self._genome[i])
 
@@ -98,7 +102,9 @@ class ChannelBasedDecoder(Decoder):
         for phase, repeat in zip(phases, self._repeats):
             for _ in range(repeat):
                 layers.append(phase)
-            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))  # TODO: Generalize this, or consider a new genome.
+            layers.append(
+                nn.MaxPool2d(kernel_size=2, stride=2)
+            )  # TODO: Generalize this, or consider a new genome.
 
         layers.append(last_phase)
         return layers
@@ -153,7 +159,14 @@ class LOSHourGlassDecoder(HourGlassDecoder, nn.Module):
     GENE_LB = 0  # Gene must be greater than this value.
     GENE_UB = 6  # Gene must be less than this value.
 
-    def __init__(self, genome, n_stacks, out_feature_maps, pre_hourglass_channels=32, hourglass_channels=64):
+    def __init__(
+        self,
+        genome,
+        n_stacks,
+        out_feature_maps,
+        pre_hourglass_channels=32,
+        hourglass_channels=64,
+    ):
         """
         Constructor.
         :param genome: list, list of ints satisfying properties defined in self.valid_genome.
@@ -170,40 +183,77 @@ class LOSHourGlassDecoder(HourGlassDecoder, nn.Module):
 
         # Initial resolution reducing, takes 256 x 256 to 64 x 64
         self.initial = nn.Sequential(
-            nn.Conv2d(3, self.pre_hourglass_channels, kernel_size=7, stride=2, padding=3, bias=True),
+            nn.Conv2d(
+                3,
+                self.pre_hourglass_channels,
+                kernel_size=7,
+                stride=2,
+                padding=3,
+                bias=True,
+            ),
             nn.BatchNorm2d(self.pre_hourglass_channels),
             nn.ReLU(inplace=True),
-            HourGlassResidual(self.pre_hourglass_channels, self.pre_hourglass_channels)
+            HourGlassResidual(
+                self.pre_hourglass_channels, self.pre_hourglass_channels
+            ),
         )
 
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.secondary = nn.Sequential(
-            HourGlassResidual(self.pre_hourglass_channels, self.pre_hourglass_channels),
-            HourGlassResidual(self.pre_hourglass_channels, self.hourglass_channels)
+            HourGlassResidual(
+                self.pre_hourglass_channels, self.pre_hourglass_channels
+            ),
+            HourGlassResidual(
+                self.pre_hourglass_channels, self.hourglass_channels
+            ),
         )
 
         #
         # Evolved part follows.
         #
         graph = LOSComputationGraph(genome)  # The evolved computation graph.
-        hg_channels = self.hourglass_channels * LOSHourGlassBlock.EXPANSION  # Number of channels output by the hourglass.
+        hg_channels = (
+            self.hourglass_channels * LOSHourGlassBlock.EXPANSION
+        )  # Number of channels output by the hourglass.
 
         # List of hourglasses, deep copy of hourglass constructed above.
-        hourglasses = [LOSHourGlassBlock(graph, self.hourglass_channels, hg_channels)]
+        hourglasses = [
+            LOSHourGlassBlock(graph, self.hourglass_channels, hg_channels)
+        ]
 
         # Lin layers run on the output of the hourglass.
         first_lin = [Lin(hg_channels, hg_channels)]
         second_lin = [Lin(hg_channels, self.hourglass_channels)]
 
         # 1x1 convs to adjust channels to fit number of scoremaps.
-        to_score_map = [nn.Conv2d(self.hourglass_channels, out_feature_maps, kernel_size=1, bias=True)]
+        to_score_map = [
+            nn.Conv2d(
+                self.hourglass_channels,
+                out_feature_maps,
+                kernel_size=1,
+                bias=True,
+            )
+        ]
         # 1x1 convs to adjust scoremap back to appropriate feature map count.
-        from_score_map = [nn.Conv2d(out_feature_maps, self.hourglass_channels + self.pre_hourglass_channels, kernel_size=1, bias=True)]
+        from_score_map = [
+            nn.Conv2d(
+                out_feature_maps,
+                self.hourglass_channels + self.pre_hourglass_channels,
+                kernel_size=1,
+                bias=True,
+            )
+        ]
 
         # 1x1 convs for the skip connection that skips the hourglass.
-        skip_convs = [nn.Conv2d(self.hourglass_channels + self.pre_hourglass_channels, self.hourglass_channels + self.pre_hourglass_channels,
-                                kernel_size=1, bias=True)]
+        skip_convs = [
+            nn.Conv2d(
+                self.hourglass_channels + self.pre_hourglass_channels,
+                self.hourglass_channels + self.pre_hourglass_channels,
+                kernel_size=1,
+                bias=True,
+            )
+        ]
 
         skip_channels = self.pre_hourglass_channels
 
@@ -213,17 +263,35 @@ class LOSHourGlassDecoder(HourGlassDecoder, nn.Module):
         #
 
         for i in range(1, n_stacks):
-            hourglasses.append(LOSHourGlassBlock(graph, self.hourglass_channels + skip_channels, hg_channels))
+            hourglasses.append(
+                LOSHourGlassBlock(
+                    graph, self.hourglass_channels + skip_channels, hg_channels
+                )
+            )
             first_lin.append(Lin(hg_channels, hg_channels))
 
-            to_score_map.append(nn.Conv2d(self.hourglass_channels, out_feature_maps, kernel_size=1, bias=True))
+            to_score_map.append(
+                nn.Conv2d(
+                    self.hourglass_channels,
+                    out_feature_maps,
+                    kernel_size=1,
+                    bias=True,
+                )
+            )
             second_lin.append(Lin(hg_channels, self.hourglass_channels))
 
             # We only need go back to the original channel sizes from the score maps n - 1 times.
             if i < n_stacks - 1:
-                skip_convs.append(nn.Conv2d(hg_channels, hg_channels, kernel_size=1, bias=True))
-                from_score_map.append(nn.Conv2d(out_feature_maps, hg_channels, kernel_size=1,
-                                                bias=True))
+                skip_convs.append(
+                    nn.Conv2d(
+                        hg_channels, hg_channels, kernel_size=1, bias=True
+                    )
+                )
+                from_score_map.append(
+                    nn.Conv2d(
+                        out_feature_maps, hg_channels, kernel_size=1, bias=True
+                    )
+                )
 
             skip_channels = self.hourglass_channels
 
@@ -242,17 +310,25 @@ class LOSHourGlassDecoder(HourGlassDecoder, nn.Module):
         :param genome: list, list of ints, representing the genome.
         :raises AssertionError: if genome is not valid.
         """
-        assert isinstance(genome[0], int), "Genome should be a list of integers."
+        assert isinstance(
+            genome[0], int
+        ), "Genome should be a list of integers."
 
         for gene in genome:
-            assert LOSHourGlassDecoder.GENE_LB < gene < LOSHourGlassDecoder.GENE_UB, \
-                "{} is an invalid gene value, must be in range [{}, {}]".format(gene,
-                                                                                LOSHourGlassDecoder.GENE_LB,
-                                                                                LOSHourGlassDecoder.GENE_UB)
+            assert (
+                LOSHourGlassDecoder.GENE_LB
+                < gene
+                < LOSHourGlassDecoder.GENE_UB
+            ), "{} is an invalid gene value, must be in range [{}, {}]".format(
+                gene, LOSHourGlassDecoder.GENE_LB, LOSHourGlassDecoder.GENE_UB
+            )
         for i in range(len(genome) - 1):
             step = abs(genome[i] - genome[i + 1])
-            assert step <= LOSHourGlassDecoder.STEP_TOLERANCE, \
-                "Attempted to step {} resolutions, cannot step more than 2 resolutions.".format(step)
+            assert (
+                step <= LOSHourGlassDecoder.STEP_TOLERANCE
+            ), "Attempted to step {} resolutions, cannot step more than 2 resolutions.".format(
+                step
+            )
 
     def get_model(self):
         """
@@ -304,6 +380,7 @@ class Lin(nn.Module):
     """
     "Lin" layer as implemented in: https://github.com/umich-vl/pose-hg-demo/blob/master/stacked-hourglass-model.lua
     """
+
     def __init__(self, in_channels, out_channels):
         """
         Constructor.
@@ -315,7 +392,7 @@ class Lin(nn.Module):
         self.model = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=True),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -329,7 +406,9 @@ class LOSHourGlassBlock(nn.Module):
 
     EXPANSION = 2  # Hour glass block will increase channels by a factor of 2.
 
-    def __init__(self, graph, in_channels, out_channels, operating_channels=64):
+    def __init__(
+        self, graph, in_channels, out_channels, operating_channels=64
+    ):
         """
         Constructor.
         :param graph: decoder.LOSComputationGraph, represents the computation flow.
@@ -343,7 +422,9 @@ class LOSHourGlassBlock(nn.Module):
         self.graph = graph
         samplers = []
         nodes, _ = zip(*self.graph.items())
-        nodes = [None] + list(nodes) + [None]  # Append none's to downsample input and upsample output if needed.
+        nodes = (
+            [None] + list(nodes) + [None]
+        )  # Append none's to downsample input and upsample output if needed.
         for i in range(len(nodes[:-1])):
             samplers.append(self.make_sampling(nodes[i], nodes[i + 1]))
 
@@ -352,7 +433,11 @@ class LOSHourGlassBlock(nn.Module):
         skip_ops = []  # HourGlassResiduals for the skip connections
         for node in graph.keys():
             if node.residual:
-                skip_ops.append(HourGlassResidual(self.operating_channels, self.operating_channels))
+                skip_ops.append(
+                    HourGlassResidual(
+                        self.operating_channels, self.operating_channels
+                    )
+                )
 
             else:
                 skip_ops.append(None)  # Filler to make the indices match
@@ -361,15 +446,23 @@ class LOSHourGlassBlock(nn.Module):
         res = last_node.residual_node
         if res:
             # If the last node receives a residual, we need to change the operation to output the right channel size.
-            skip_ops[res.idx] = HourGlassResidual(self.operating_channels, out_channels)
+            skip_ops[res.idx] = HourGlassResidual(
+                self.operating_channels, out_channels
+            )
 
         self.skip_ops = nn.ModuleList(skip_ops)
 
         path_ops = [HourGlassResidual(in_channels, self.operating_channels)]
         for i in range(len(graph) - 2):
-            path_ops.append(HourGlassResidual(self.operating_channels, self.operating_channels))
+            path_ops.append(
+                HourGlassResidual(
+                    self.operating_channels, self.operating_channels
+                )
+            )
 
-        path_ops.append(HourGlassResidual(self.operating_channels, out_channels))
+        path_ops.append(
+            HourGlassResidual(self.operating_channels, out_channels)
+        )
 
         self.path_ops = nn.ModuleList(path_ops)
 
@@ -417,7 +510,9 @@ class LOSHourGlassBlock(nn.Module):
             if res:
                 # Current node receives a residual connection.
                 x += residuals[res.idx]
-                residuals[res.idx] = None  # Free some memory, we'll never need this again.
+                residuals[
+                    res.idx
+                ] = None  # Free some memory, we'll never need this again.
 
         return self.samplers[-1](x)
 
@@ -426,10 +521,12 @@ class LOSComputationGraph:
     """
     Graph to hold information about the computation going on in
     """
+
     class Node:
         """
         Node to hold information.
         """
+
         def __init__(self, resolution, idx, residual=False):
             """
             Constructor.
@@ -437,12 +534,24 @@ class LOSComputationGraph:
             :param idx: int, the index of the node in the graph (feed-forward, so this is ok).
             :param residual: bool, true if output of this node is needed at some point later in the graph.
             """
-            self.resolution, self.idx, self.residual = resolution, idx, residual
-            self.residual_node = None  # If this node receives a residual, store it here.
+            self.resolution, self.idx, self.residual = (
+                resolution,
+                idx,
+                residual,
+            )
+            self.residual_node = (
+                None  # If this node receives a residual, store it here.
+            )
 
         def __repr__(self):
             residual_str = ", saves residual" if self.residual else ""
-            return "<Node index: {} resolution: {}".format(self.idx, self.resolution) + residual_str + ">"
+            return (
+                "<Node index: {} resolution: {}".format(
+                    self.idx, self.resolution
+                )
+                + residual_str
+                + ">"
+            )
 
         def __str__(self):
             return self.__repr__()
@@ -504,7 +613,10 @@ class LOSComputationGraph:
         """
         adj = OrderedDict()
 
-        nodes = [LOSComputationGraph.Node(pow(2, -(gene - 1)), i) for i, gene in enumerate(genome)]
+        nodes = [
+            LOSComputationGraph.Node(pow(2, -(gene - 1)), i)
+            for i, gene in enumerate(genome)
+        ]
 
         # Construct the initial path through the graph, each node is connected to the one at the index in front of it.
         # Read as "Gene i" and "Gene i plus one".
@@ -519,8 +631,11 @@ class LOSComputationGraph:
             if node.resolution in previous_resolutions:
                 # We have found a node that occurred before the current one with the same resolution.
 
-                if previous_node.resolution < node.resolution or \
-                   previous_node.resolution > node.resolution and under_connect:
+                if (
+                    previous_node.resolution < node.resolution
+                    or previous_node.resolution > node.resolution
+                    and under_connect
+                ):
                     # Either we upsampled or downsampled. We always mark a residual and update the previous resolution
                     # is we upsample. If we're allowing connections under the path, we do the same.
                     previous_resolutions[node.resolution].residual = True
@@ -546,22 +661,40 @@ class HourGlassResidual(nn.Module):
     Hour glass residual, As defined in https://arxiv.org/pdf/1603.06937.pdf.
     Code converted from original lua: https://github.com/umich-vl/pose-hg-demo/blob/master/residual.lua
     """
+
     def __init__(self, in_channels, out_channels):
         super(HourGlassResidual, self).__init__()
 
         # 1x1 convolution to make the residual connection's channels match the output channels.
-        self.skip_layer = Identity() if in_channels == out_channels else \
-            nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=True), nn.BatchNorm2d(out_channels))
+        self.skip_layer = (
+            Identity()
+            if in_channels == out_channels
+            else nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=True),
+                nn.BatchNorm2d(out_channels),
+            )
+        )
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels // 2, kernel_size=1, bias=True),
+            nn.Conv2d(
+                in_channels, out_channels // 2, kernel_size=1, bias=True
+            ),
             nn.BatchNorm2d(out_channels // 2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels // 2, out_channels // 2, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.Conv2d(
+                out_channels // 2,
+                out_channels // 2,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=True,
+            ),
             nn.BatchNorm2d(out_channels // 2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels // 2, out_channels, kernel_size=1, bias=True),
-            nn.BatchNorm2d(out_channels)
+            nn.Conv2d(
+                out_channels // 2, out_channels, kernel_size=1, bias=True
+            ),
+            nn.BatchNorm2d(out_channels),
         )
 
     def forward(self, x):
@@ -594,8 +727,14 @@ class ResidualGenomeDecoder(ChannelBasedDecoder):
 
         # Build up the appropriate number of phases.
         phases = []
-        for idx, (gene, (in_channels, out_channels)) in enumerate(zip(self._genome, self._channels)):
-            phases.append(ResidualPhase(gene, in_channels, out_channels, idx, preact=preact))
+        for idx, (gene, (in_channels, out_channels)) in enumerate(
+            zip(self._genome, self._channels)
+        ):
+            phases.append(
+                ResidualPhase(
+                    gene, in_channels, out_channels, idx, preact=preact
+                )
+            )
 
         self._model = nn.Sequential(*self.build_layers(phases))
 
@@ -622,8 +761,16 @@ class ResidualPhase(nn.Module):
         """
         super(ResidualPhase, self).__init__()
 
-        self.channel_flag = in_channels != out_channels  # Flag to tell us if we need to increase channel size.
-        self.first_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1 if idx != 0 else 3, stride=1, bias=False)
+        self.channel_flag = (
+            in_channels != out_channels
+        )  # Flag to tell us if we need to increase channel size.
+        self.first_conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=1 if idx != 0 else 3,
+            stride=1,
+            bias=False,
+        )
         self.dependency_graph = ResidualPhase.build_dependency_graph(gene)
 
         if preact:
@@ -645,16 +792,21 @@ class ResidualPhase(nn.Module):
         # At this point, we know which nodes will be receiving input from where.
         # So, we build the 1x1 convolutions that will deal with the depth-wise concatenations.
         #
-        conv1x1s = [Identity()] + [Identity() for _ in range(max(self.dependency_graph.keys()))]
+        conv1x1s = [Identity()] + [
+            Identity() for _ in range(max(self.dependency_graph.keys()))
+        ]
         for node_idx, dependencies in self.dependency_graph.items():
             if len(dependencies) > 1:
-                conv1x1s[node_idx] = \
-                    nn.Conv2d(len(dependencies) * out_channels, out_channels, kernel_size=1, bias=False)
+                conv1x1s[node_idx] = nn.Conv2d(
+                    len(dependencies) * out_channels,
+                    out_channels,
+                    kernel_size=1,
+                    bias=False,
+                )
 
         self.processors = nn.ModuleList(conv1x1s)
         self.out = nn.Sequential(
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True)
         )
 
     @staticmethod
@@ -673,7 +825,9 @@ class ResidualPhase(nn.Module):
         # First pass, build the graph without repairs.
         graph[1] = []
         for i in range(len(gene) - 1):
-            graph[i + 2] = [j + 1 for j in range(len(gene[i])) if gene[i][j] == 1]
+            graph[i + 2] = [
+                j + 1 for j in range(len(gene[i])) if gene[i][j] == 1
+            ]
 
         graph[len(gene) + 1] = [0] if residual else []
 
@@ -716,9 +870,13 @@ class ResidualPhase(nn.Module):
                 outputs.append(None)
 
             else:
-                outputs.append(self.nodes[i - 1](self.process_dependencies(i, outputs)))
+                outputs.append(
+                    self.nodes[i - 1](self.process_dependencies(i, outputs))
+                )
 
-        return self.out(self.process_dependencies(len(self.nodes) + 1, outputs))
+        return self.out(
+            self.process_dependencies(len(self.nodes) + 1, outputs)
+        )
 
     def process_dependencies(self, node_idx, outputs):
         """
@@ -727,7 +885,11 @@ class ResidualPhase(nn.Module):
         :param outputs: list, current outputs
         :return: Variable
         """
-        return self.processors[node_idx](torch.cat([outputs[i] for i in self.dependency_graph[node_idx]], dim=1))
+        return self.processors[node_idx](
+            torch.cat(
+                [outputs[i] for i in self.dependency_graph[node_idx]], dim=1
+            )
+        )
 
 
 class ResidualNode(nn.Module):
@@ -736,8 +898,15 @@ class ResidualNode(nn.Module):
     Does convolution, batchnorm, and relu (in this order).
     """
 
-    def __init__(self, in_channels, out_channels, stride=1,
-                 kernel_size=3, padding=1, bias=False):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        stride=1,
+        kernel_size=3,
+        padding=1,
+        bias=False,
+    ):
         """
         Constructor.
         Default arguments preserve dimensionality of input.
@@ -752,9 +921,16 @@ class ResidualNode(nn.Module):
         super(ResidualNode, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias),
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
+            ),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -772,8 +948,15 @@ class PreactResidualNode(nn.Module):
     Does batchnorm, relu, and convolution (in this order).
     """
 
-    def __init__(self, in_channels, out_channels, stride=1,
-                 kernel_size=3, padding=1, bias=False):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        stride=1,
+        kernel_size=3,
+        padding=1,
+        bias=False,
+    ):
         """
         Constructor.
         Default arguments preserve dimensionality of input.
@@ -790,7 +973,14 @@ class PreactResidualNode(nn.Module):
         self.model = nn.Sequential(
             nn.BatchNorm2d(in_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
+            ),
         )
 
     def forward(self, x):
@@ -807,6 +997,7 @@ class VariableGenomeDecoder(ChannelBasedDecoder):
     Residual decoding with extra integer for type of node inside the phase.
     This genome decoder produces networks that are a superset of ResidualGenomeDecoder networks.
     """
+
     RESIDUAL = 0
     PREACT_RESIDUAL = 1
     DENSE = 2
@@ -819,7 +1010,9 @@ class VariableGenomeDecoder(ChannelBasedDecoder):
         :param repeats: None | list, list of integers describing how many times to repeat each phase.
         """
         phase_types = [gene.pop() for gene in list_genome]
-        genome_copy = copy(list_genome)  # We can't guarantee the genome won't be changed in the parent constructor.
+        genome_copy = copy(
+            list_genome
+        )  # We can't guarantee the genome won't be changed in the parent constructor.
 
         super().__init__(list_genome, channels, repeats=repeats)
 
@@ -830,20 +1023,30 @@ class VariableGenomeDecoder(ChannelBasedDecoder):
         self._types = self.adjust_types(genome_copy, phase_types)
 
         phases = []
-        for idx, (gene, (in_channels, out_channels), phase_type) in enumerate(zip(self._genome,
-                                                                                  self._channels,
-                                                                                  self._types)):
+        for idx, (gene, (in_channels, out_channels), phase_type) in enumerate(
+            zip(self._genome, self._channels, self._types)
+        ):
             if phase_type == self.RESIDUAL:
-                phases.append(ResidualPhase(gene, in_channels, out_channels, idx))
+                phases.append(
+                    ResidualPhase(gene, in_channels, out_channels, idx)
+                )
 
             elif phase_type == self.PREACT_RESIDUAL:
-                phases.append(ResidualPhase(gene, in_channels, out_channels, idx, preact=True))
+                phases.append(
+                    ResidualPhase(
+                        gene, in_channels, out_channels, idx, preact=True
+                    )
+                )
 
             elif phase_type == self.DENSE:
                 phases.append(DensePhase(gene, in_channels, out_channels, idx))
 
             else:
-                raise NotImplementedError("Phase type corresponding to {} not implemented.".format(phase_type))
+                raise NotImplementedError(
+                    "Phase type corresponding to {} not implemented.".format(
+                        phase_type
+                    )
+                )
 
         self._model = nn.Sequential(*self.build_layers(phases))
 
@@ -872,6 +1075,7 @@ class DenseGenomeDecoder(ChannelBasedDecoder):
     """
     Genetic CNN genome decoder with residual bit.
     """
+
     def __init__(self, list_genome, channels, repeats=None):
         """
         Constructor.
@@ -886,7 +1090,9 @@ class DenseGenomeDecoder(ChannelBasedDecoder):
 
         # Build up the appropriate number of phases.
         phases = []
-        for idx, (gene, (in_channels, out_channels)) in enumerate(zip(self._genome, self._channels)):
+        for idx, (gene, (in_channels, out_channels)) in enumerate(
+            zip(self._genome, self._channels)
+        ):
             phases.append(DensePhase(gene, in_channels, out_channels, idx))
 
         self._model = nn.Sequential(*self.build_layers(phases))
@@ -923,9 +1129,17 @@ class DensePhase(nn.Module):
         """
         super(DensePhase, self).__init__()
 
-        self.in_channel_flag = in_channels != out_channels  # Flag to tell us if we need to increase channel size.
+        self.in_channel_flag = (
+            in_channels != out_channels
+        )  # Flag to tell us if we need to increase channel size.
         self.out_channel_flag = out_channels != DenseNode.t
-        self.first_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1 if idx != 0 else 3, stride=1, bias=False)
+        self.first_conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=1 if idx != 0 else 3,
+            stride=1,
+            bias=False,
+        )
         self.dependency_graph = ResidualPhase.build_dependency_graph(gene)
 
         channel_adjustment = 0
@@ -937,12 +1151,20 @@ class DensePhase(nn.Module):
             else:
                 channel_adjustment += DenseNode.t
 
-        self.last_conv = nn.Conv2d(channel_adjustment, out_channels, kernel_size=1, stride=1, bias=False)
+        self.last_conv = nn.Conv2d(
+            channel_adjustment,
+            out_channels,
+            kernel_size=1,
+            stride=1,
+            bias=False,
+        )
 
         nodes = []
         for i in range(len(gene)):
             if len(self.dependency_graph[i + 1]) > 0:
-                channels = self.compute_channels(self.dependency_graph[i + 1], out_channels)
+                channels = self.compute_channels(
+                    self.dependency_graph[i + 1], out_channels
+                )
                 nodes.append(DenseNode(channels))
 
             else:
@@ -950,9 +1172,7 @@ class DensePhase(nn.Module):
 
         self.nodes = nn.ModuleList(nodes)
         self.out = nn.Sequential(
-            self.last_conv,
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            self.last_conv, nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True)
         )
 
     @staticmethod
@@ -980,24 +1200,59 @@ class DensePhase(nn.Module):
         outputs = [x]
 
         for i in range(1, len(self.nodes) + 1):
-            if not self.dependency_graph[i]:  # Empty dependencies, no output to give.
+            if not self.dependency_graph[
+                i
+            ]:  # Empty dependencies, no output to give.
                 outputs.append(None)
 
             else:
                 # Call the node on the depthwise concatenation of its inputs.
-                outputs.append(self.nodes[i - 1](torch.cat([outputs[j] for j in self.dependency_graph[i]], dim=1)))
+                outputs.append(
+                    self.nodes[i - 1](
+                        torch.cat(
+                            [outputs[j] for j in self.dependency_graph[i]],
+                            dim=1,
+                        )
+                    )
+                )
 
-        if self.out_channel_flag and 0 in self.dependency_graph[len(self.nodes) + 1]:
+        if (
+            self.out_channel_flag
+            and 0 in self.dependency_graph[len(self.nodes) + 1]
+        ):
             # Get the last nodes in the phase and change their channels to match the desired output.
-            non_zero_dep = [dep for dep in self.dependency_graph[len(self.nodes) + 1] if dep != 0]
+            non_zero_dep = [
+                dep
+                for dep in self.dependency_graph[len(self.nodes) + 1]
+                if dep != 0
+            ]
 
-            return self.out(torch.cat([outputs[i] for i in non_zero_dep] + [outputs[0]], dim=1))
+            return self.out(
+                torch.cat(
+                    [outputs[i] for i in non_zero_dep] + [outputs[0]], dim=1
+                )
+            )
 
         if self.out_channel_flag:
             # Same as above, we just don't worry about the 0th node.
-            return self.out(torch.cat([outputs[i] for i in self.dependency_graph[len(self.nodes) + 1]], dim=1))
+            return self.out(
+                torch.cat(
+                    [
+                        outputs[i]
+                        for i in self.dependency_graph[len(self.nodes) + 1]
+                    ],
+                    dim=1,
+                )
+            )
 
-        return self.out(torch.cat([outputs[i] for i in self.dependency_graph[len(self.nodes) + 1]]))
+        return self.out(
+            torch.cat(
+                [
+                    outputs[i]
+                    for i in self.dependency_graph[len(self.nodes) + 1]
+                ]
+            )
+        )
 
 
 class DenseNode(nn.Module):
@@ -1005,6 +1260,7 @@ class DenseNode(nn.Module):
     Node that operates like DenseNet layers.
     Refer to: https://arxiv.org/pdf/1608.06993.pdf
     """
+
     t = 64  # Growth rate fixed at 32 (a hyperparameter, although fixed in paper)
     k = 4  # Growth rate multiplier fixed at 4 (not a hyperparameter, this is from the definition of the dense layer).
 
@@ -1022,7 +1278,14 @@ class DenseNode(nn.Module):
             nn.Conv2d(in_channels, self.t * self.k, kernel_size=1, bias=False),
             nn.BatchNorm2d(self.t * self.k),
             nn.ReLU(inplace=True),
-            nn.Conv2d(self.t * self.k, self.t, kernel_size=3, stride=1, padding=1, bias=False)
+            nn.Conv2d(
+                self.t * self.k,
+                self.t,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
         )
 
     def forward(self, x):
@@ -1046,7 +1309,6 @@ class GCNNGenomeDecoder(Decoder):
 
     def __init__(self, list_genome):
         super().__init__(list_genome)
-        pass
 
     def get_model(self):
         pass
@@ -1061,7 +1323,6 @@ class DONGenomeDecoder(Decoder):
 
     def __init__(self, list_genome):
         super().__init__(list_genome)
-        pass
 
     def get_model(self):
         pass
@@ -1085,32 +1346,23 @@ def demo():
     """
 
     genome = [
-        [
-            [1],
-            [0, 0],
-            [1, 0, 0],
-            [1]
-        ],
+        [[1], [0, 0], [1, 0, 0], [1]],
         [  # Phase will be ignored, there are no active connections (residual is not counted as active).
             [0],
             [0, 0],
             [0, 0, 0],
-            [1]
-        ],
-        [
             [1],
-            [0, 0],
-            [0, 0, 0],
-            [0, 0, 0, 0],
-            [1]
-        ]
+        ],
+        [[1], [0, 0], [0, 0, 0], [0, 0, 0, 0], [1]],
     ]
 
     channels = [(3, 8), (8, 8), (8, 8)]
     data = torch.randn(16, 3, 32, 32)
 
-    model = ResidualGenomeDecoder(genome, channels, repeats=[1, 2, 3]).get_model()
-    out = model(torch.autograd.Variable(data))
+    model = ResidualGenomeDecoder(
+        genome, channels, repeats=[1, 2, 3]
+    ).get_model()
+    model(torch.autograd.Variable(data))
 
 
 if __name__ == "__main__":
