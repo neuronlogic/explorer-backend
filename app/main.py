@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import app.settings.base
-from app.api import miners, files
+from app.api import miners, files, validators
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.utils.pull_data import get_runs_dataframe, load_config
 from app.utils.model_conversion import convert_models_to_onnx
@@ -61,3 +61,4 @@ app.add_middleware(
 
 app.include_router(miners.router)
 app.include_router(files.router)
+app.include_router(validators.router)
