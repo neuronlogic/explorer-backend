@@ -3,20 +3,15 @@ import os
 import json
 import pandas as pd
 import sys
+from dotenv import load_dotenv
+from pathlib import Path
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 )
 from app.settings.config import MEDIA_DIR, ROOT_DIR
 
-
-# Load environment variables from .env file
-def initialize_wandb(api_key: str) -> None:
-    """Initialize wandb with the provided API key."""
-    try:
-        wandb.login(key=api_key)
-    except Exception as e:
-        raise e
+load_dotenv()
 
 
 def load_config(config_path: str) -> dict:
@@ -29,14 +24,28 @@ def load_config(config_path: str) -> dict:
         raise e
 
 
+# Load environment variables from .env file
+def initialize_wandb(api_key: str) -> None:
+    """Initialize wandb with the provided API key."""
+    try:
+        wandb.login(key=api_key)
+    except Exception as e:
+        raise e
+
+
 def load_most_recent_times(filepath: str) -> dict:
     """Load most_recent_times from a JSON file."""
     try:
         if os.path.exists(filepath):
-            with open(filepath, "w") as f:
+            with open(filepath, "r") as f:
+                content = f.read().strip()
+                if not content:  # If file is empty
+                    return {}
                 return json.load(f)
         else:
             return {}
+    except json.JSONDecodeError:  # Handle invalid JSON
+        return {}
     except Exception as e:
         raise e
 
@@ -50,20 +59,23 @@ def save_most_recent_times(filepath: str, most_recent_times: dict) -> None:
         raise e
 
 
-def get_runs_dataframe():
+def get_runs_dataframe(status: str):
     try:
-        print("getting runs dataframe")
-        config = load_config(f"{ROOT_DIR}/settings/validators.json")
+        config = load_config(
+            Path(ROOT_DIR) / "settings" / status / "validators.json"
+        )
 
         entity = config.get("entity")
         project = config.get("project")
         run_ids = config.get("run_ids")
+
         wandb_api_key = os.getenv("WANDB_API_KEY")
+
         initialize_wandb(wandb_api_key)
         api = wandb.Api()
 
         most_recent_times_filepath = (
-            f"{MEDIA_DIR}/table/most_recent_times.json"
+            f"{MEDIA_DIR}/{status}/table/most_recent_times.json"
         )
         most_recent_times = load_most_recent_times(most_recent_times_filepath)
 
@@ -71,7 +83,6 @@ def get_runs_dataframe():
             run_id = run_id_item["id"]
             run_id_value = run_id_item["value"]
             run = api.run(f"{entity}/{project}/{run_id_value}")
-
             saved_run_time = most_recent_times.get(run_id, None)
 
             most_recent_file = None
@@ -95,7 +106,11 @@ def get_runs_dataframe():
             if most_recent_file:
                 file_path = most_recent_file.download(replace=True)
 
-                custom_filename = f"{MEDIA_DIR}/table/validator{run_id}.json"
+                os.makedirs(f"{MEDIA_DIR}/{status}/table", exist_ok=True)
+
+                custom_filename = (
+                    f"{MEDIA_DIR}/{status}/table/validator{run_id}.json"
+                )
 
                 # Rename the downloaded file to the custom filename
                 os.rename(file_path.name, custom_filename)
@@ -110,7 +125,6 @@ def get_runs_dataframe():
 
         save_most_recent_times(most_recent_times_filepath, most_recent_times)
 
-        print(most_recent_times)
         return True
     except Exception as e:
         raise e

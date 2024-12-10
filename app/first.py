@@ -2,27 +2,18 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from app.utils.model_conversion import convert_models_to_onnx
-from app.utils.pull_data import load_config
-from app.settings.config import ROOT_DIR, MEDIA_DIR
+from app.utils.process_validator import process_validator_data
 
 
-def my_scheduled_task():
+def scheduled_task() -> None:
+    """Execute the scheduled task for processing validator data."""
     try:
-        config = load_config(f"{ROOT_DIR}/settings/validators.json")
-        json_files = [
-            f"{MEDIA_DIR}/table/validator{validator['id']}.json"
-            for validator in config.get("run_ids")
-        ]
-        convert_models_to_onnx(
-            json_files=json_files,
-            nsga_net_path=f"{ROOT_DIR}/nsga-net",
-            logs_path=f"{ROOT_DIR}/logs",
-            files_path=f"{MEDIA_DIR}/files",
-        )
-        print("Running scheduled task... Data retrieved.")
-    except Exception as e:
-        print(f"Error fetching data: {e}")
+        process_validator_data("archived")
+        process_validator_data("current")
+
+    except Exception:
+        raise
 
 
-my_scheduled_task()
+if __name__ == "__main__":
+    scheduled_task()

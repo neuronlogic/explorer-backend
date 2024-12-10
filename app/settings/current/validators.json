@@ -1,0 +1,16 @@
+{
+    "entity": "naschain",
+    "project": "naschain-dashboard",
+    "run_ids": [
+        {
+            "id": 0,
+            "name": "Rizzo",
+            "value": "5F2CsUDVbRbVMXTh9fAzF9GacjVX7UapvRxidrxe7z8BYckQ"
+        },
+        {
+            "id": 1,
+            "name": "TaoStats",
+            "value": "5DhHWS4CwAdmMFJfGyXuKfJZ3VRrDCApt9eoC2A6HsYyCwdb"
+        }
+    ]
+}
