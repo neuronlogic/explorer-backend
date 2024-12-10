@@ -8,8 +8,8 @@ from app.utils.process_validator import process_validator_data
 def scheduled_task() -> None:
     """Execute the scheduled task for processing validator data."""
     try:
-        process_validator_data("archived")
-        process_validator_data("current")
+        process_validator_data(status="archived")
+        process_validator_data(status="current")
 
     except Exception:
         raise

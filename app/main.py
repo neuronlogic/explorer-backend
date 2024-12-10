@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 
 def scheduled_task():
     try:
-        process_validator_data("current")
+        process_validator_data(status="current")
 
         print("Running scheduled task... Data retrieved.")
     except Exception as e:
