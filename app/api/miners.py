@@ -18,6 +18,8 @@ def serve_miners(validator_id: int, status: str = "current"):
     file_path = f"{MEDIA_DIR}/{status_path}/table/validator{validator_id}.json"
 
     miners_list = get_miners(file_path)
+
+    print(miners_list)
     if not miners_list:
         raise HTTPException(status_code=404, detail="Miners data not found")
     return miners_list

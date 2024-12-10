@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Response
-from app.settings.config import FILE_DIR
+from app.settings.config import MEDIA_DIR
 
 router = APIRouter()
 
@@ -14,8 +14,14 @@ def serve_onnx_file(uid: str, status: str = "current"):
         )
 
     # Adjust file path based on status
-    base_path = FILE_DIR / ("archived" if status == "archived" else "current")
+    base_path = (
+        MEDIA_DIR
+        / ("archived" if status == "archived" else "current")
+        / "files"
+    )
     file_path = base_path / uid
+
+    print(file_path)
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
